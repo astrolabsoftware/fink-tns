@@ -19,6 +19,28 @@ import numpy as np
 import pandas as pd
 import glob
 
+# Fink groupid
+reporting_group_id = "103"
+
+# ZTF data source
+discovery_data_source_id = "48"
+
+# instrument
+instrument = "196"
+
+# units
+inst_units = "1"
+
+# at type
+at_type = "1"
+
+# filters: 110 (g-ZTF), 111 (r-ZTF), 112 (i-ZTF)
+filters_dict = {1: "110", 2: "111", 3: "112"}
+
+reporter = "Julien Peloton, Anais Moller, Emille E. O. Ishida on behalf of the Fink broker"
+
+remarks = "Early SN candidate classified by Fink using the public ZTF stream. Object data at http://134.158.75.151:24000/{} "
+
 def search_tns(api_key, oid):
     """
     """
