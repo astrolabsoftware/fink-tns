@@ -41,7 +41,7 @@ filters_dict = {1: "110", 2: "111", 3: "112"}
 
 reporter = "Julien Peloton, Anais Moller, Emille E. O. Ishida on behalf of the Fink broker"
 
-remarks = "Early SN candidate classified by Fink using the public ZTF stream. Object data at http://134.158.75.151:24000/{} "
+remarks = "Early SN Ia candidate classified by Fink using the public ZTF stream. Object data at http://134.158.75.151:24000/{} "
 
 def search_tns(api_key, oid):
     """ need to pass url as args
