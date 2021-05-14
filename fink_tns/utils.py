@@ -100,7 +100,7 @@ def retrieve_groupid(api_key, tns_marker, oid):
     oid: str
         Internal Object ID (e.g. ZTFXXXXXX)
     """
-    reply = search_tns(api_key, oid)
+    reply = search_tns(api_key, tns_marker, oid)
 
     if reply != []:
         objname = reply[0]["objname"]
