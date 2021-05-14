@@ -140,9 +140,20 @@ def format_to_json(source):
     result = json.dumps(parsed, indent=4)
     return result
 
-def send_json_report(api_key, url, json_file_path):
-    """
-    Function for sending json reports (AT or Classification)
+def send_json_report(api_key, url, json_file_path, tns_marker):
+    """ Function for sending json reports (AT or Classification)
+
+    Parameters
+    ----------
+    api_key: str
+        API key for TNS
+    url: str
+        URL for posting results
+    json_file_path: str
+        Path to the generated report to be posted
+    tns_marker: str
+        New marker to be inserted in the header (user-agent).
+        See https://www.wis-tns.org/content/tns-newsfeed#comment-wrapper-23710
     """
     # url for sending json reports
     json_url = url + '/bulk-report'
@@ -156,7 +167,10 @@ def send_json_report(api_key, url, json_file_path):
         ('data', (None, json_read))
     ]
 
+    # define header
+    headers = {'user-agent': tns_marker}
+
     # send json report using request module
-    response = requests.post(json_url, files=json_data)
+    response = requests.post(json_url, files=json_data, headers=headers)
 
     return response
