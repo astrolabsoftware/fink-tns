@@ -43,8 +43,18 @@ reporter = "Julien Peloton, Anais Moller, Emille E. O. Ishida on behalf of the F
 
 remarks = "Early SN Ia candidate classified by Fink using the public ZTF stream. Object data at http://134.158.75.151:24000/{} "
 
-def search_tns(api_key, oid):
-    """ need to pass url as args
+def search_tns(api_key, tns_marker, oid):
+    """ Get TNS data for a given object ID
+
+    Parameters
+    ----------
+    api_key: str
+        API key for TNS
+    tns_marker: str
+        New marker to be inserted in the header (user-agent).
+        See https://www.wis-tns.org/content/tns-newsfeed#comment-wrapper-23710
+    oid: str
+        Internal Object ID (e.g. ZTFXXXXXX)
     """
     orddict = OrderedDict(
         [
@@ -60,9 +70,13 @@ def search_tns(api_key, oid):
         ('data', (None, json.dumps(orddict)))
     ]
 
-    response=requests.post(
+    # define header
+    headers = {'user-agent': tns_marker}
+
+    response = requests.post(
         "https://www.wis-tns.org/api/get/search",
         files=search_data,
+        headers=headers,
         timeout=(5, 10)
     )
 
@@ -73,8 +87,18 @@ def search_tns(api_key, oid):
 
     return reply
 
-def retrieve_groupid(api_key, oid):
-    """ need to pass url as args
+def retrieve_groupid(api_key, tns_marker, oid):
+    """ Get TNS groupid for a given object ID
+
+    Parameters
+    ----------
+    api_key: str
+        API key for TNS
+    tns_marker: str
+        New marker to be inserted in the header (user-agent).
+        See https://www.wis-tns.org/content/tns-newsfeed#comment-wrapper-23710
+    oid: str
+        Internal Object ID (e.g. ZTFXXXXXX)
     """
     reply = search_tns(api_key, oid)
 
@@ -93,9 +117,13 @@ def retrieve_groupid(api_key, oid):
         ('data', (None, json.dumps(data)))
     ]
 
+    # define header
+    headers = {'user-agent': tns_marker}
+
     response = requests.post(
         "https://www.wis-tns.org/api/get/object",
-        files=json_data
+        files=json_data,
+        headers=headers
     )
 
     data = response.json()['data']
@@ -103,7 +131,17 @@ def retrieve_groupid(api_key, oid):
     return data['reply']['discovery_data_source']['groupid']
 
 def extract_radec(data):
-    """
+    """ Return mean RA/Dec and scatter for a ZTF object based on all alerts
+
+    Parameters
+    ----------
+    data: dict
+        Dictionnary containing all alerts for a given ZTF objects
+
+    Returns
+    ----------
+    out: dict
+        Mean RA/Dec and scatter
     """
     ra = []
     dec = []
@@ -127,18 +165,32 @@ def extract_radec(data):
     }
 
 def read_past_ids(folder):
+    """ Read all ZTF objectId already reported by Fink to TNS
+
+    This is to avoid reporting twice the same objects
+
+    Parameters
+    ----------
+    folder: str
+        Path to the folder containing CSV files containing all ZTF objectId sent
     """
-    """
-    pdf = pd.concat([pd.read_csv(i) for i in glob.glob('{}/*.csv'.format(folder))])
+    pdf = pd.concat(
+        [
+            pd.read_csv(i) for i in glob.glob('{}/*.csv'.format(folder))
+        ]
+    )
     return pdf
 
-def download_catalog(api_key):
+def download_catalog(api_key, tns_marker):
     """ Download entire TNS data (compressed csv file) into Pandas DataFrame
 
     Parameters
     ----------
     api_key: str
         Path to API key
+    tns_marker: str
+        New marker to be inserted in the header (user-agent).
+        See https://www.wis-tns.org/content/tns-newsfeed#comment-wrapper-23710
 
     Returns
     ----------
@@ -152,9 +204,14 @@ def download_catalog(api_key):
     json_data = [
         ('api_key', (None, key)),
     ]
+
+    # define header
+    headers = {'user-agent': tns_marker}
+
     r = requests.post(
       'https://www.wis-tns.org/system/files/tns_public_objects/tns_public_objects.csv.zip',
-      files=json_data
+      files=json_data,
+      headers=headers
     )
 
     with zipfile.ZipFile(io.BytesIO(r.content)) as myzip:
