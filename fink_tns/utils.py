@@ -71,7 +71,7 @@ def search_tns(api_key, tns_marker, oid):
     ]
 
     # define header
-    headers = {'user-agent': tns_marker}
+    headers = {'User-Agent': tns_marker}
 
     response = requests.post(
         "https://www.wis-tns.org/api/get/search",
@@ -118,7 +118,7 @@ def retrieve_groupid(api_key, tns_marker, oid):
     ]
 
     # define header
-    headers = {'user-agent': tns_marker}
+    headers = {'User-Agent': tns_marker}
 
     response = requests.post(
         "https://www.wis-tns.org/api/get/object",
@@ -206,7 +206,7 @@ def download_catalog(api_key, tns_marker):
     ]
 
     # define header
-    headers = {'user-agent': tns_marker}
+    headers = {'User-Agent': tns_marker}
 
     r = requests.post(
       'https://www.wis-tns.org/system/files/tns_public_objects/tns_public_objects.csv.zip',

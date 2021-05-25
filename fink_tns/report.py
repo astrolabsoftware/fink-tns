@@ -168,7 +168,7 @@ def send_json_report(api_key, url, json_file_path, tns_marker):
     ]
 
     # define header
-    headers = {'user-agent': tns_marker}
+    headers = {'User-Agent': tns_marker}
 
     # send json report using request module
     response = requests.post(json_url, files=json_data, headers=headers)
