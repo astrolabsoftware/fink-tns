@@ -125,7 +125,9 @@ def extract_discovery_photometry(data: dict) -> (dict, dict):
 
     return first_photometry, last_non_detection
 
-def build_report(data: dict, photometry: dict, non_detection: dict, remarks_sender=None) -> dict:
+def build_report(
+        data: dict, photometry: dict, non_detection: dict,
+        reporter_custom=None, remarks_custom=None) -> dict:
     """ Build json report to send to TNS
 
     Parameters
@@ -136,17 +138,22 @@ def build_report(data: dict, photometry: dict, non_detection: dict, remarks_send
         Information about the first detection
     non_detection: dict
         Information about the last non-detection
-    remarks_sender: str, optional
+    remarks_custom: str, optional
         Comments that will be displayed on TNS. Default is None, that is
         `utils.remarks`.
+    reporter_custom: str, optional
+        Names of the reporters that will be displayed on TNS.
+        Default is None, that is `utils.reporter`.
 
     Returns
     ----------
     report: dict
         Dictionnary at the TNS format.
     """
-    if remarks_sender is None:
-        remarks_sender = remarks
+    if remarks_custom is None:
+        remarks_custom = remarks
+    if reporter_custom is None:
+        reporter_custom = reporter
 
     radec = extract_radec(data)
     report = {
@@ -162,11 +169,11 @@ def build_report(data: dict, photometry: dict, non_detection: dict, remarks_send
         },
         "reporting_group_id": reporting_group_id,
         "discovery_data_source_id": discovery_data_source_id,
-        "reporter": reporter,
+        "reporter": reporter_custom,
         "discovery_datetime": photometry['obsdate'],
         "at_type": at_type,
         "internal_name": data['objectId'],
-        "remarks": remarks_sender.format(data['objectId']),
+        "remarks": remarks_custom.format(data['objectId']),
         "non_detection": non_detection,
         "photometry": {"photometry_group": {'0': photometry}}
     }
