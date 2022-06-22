@@ -23,7 +23,18 @@ from astropy.time import Time
 import pandas as pd
 import os
 
-def generate_photometry(data):
+def generate_photometry(data: dict):
+    """ Define structure of the dictionnary that contains first detection data
+
+    Parameters
+    ----------
+    data: dict
+        Fink/ZTF alert
+
+    Returns
+    ---------
+    dd: dict
+    """
     dd = {
         "obsdate": "{}".format(Time(data['jd'], format='jd').fits.replace("T", " ")),
         "flux": "{}".format(data['magpsf']),
@@ -40,6 +51,17 @@ def generate_photometry(data):
     return dd
 
 def generate_non_detection(data):
+    """ Define structure of the dictionnary that contains last non-detection data
+
+    Parameters
+    ----------
+    data: dict
+        Fink/ZTF alert
+
+    Returns
+    ---------
+    dd: dict
+    """
     dd = {
         "obsdate": "{}".format(Time(data['jd'], format='jd').fits.replace("T", " ")),
         "limiting_flux": "{}".format(data['diffmaglim']),
@@ -53,8 +75,20 @@ def generate_non_detection(data):
 
     return dd
 
-def extract_discovery_photometry(data):
-    """
+def extract_discovery_photometry(data: dict) -> (dict, dict):
+    """ Extract the photometry at the moment of discovery
+
+    Parameters
+    ----------
+    data: dict
+        Fink/ZTF alert data as a dictionnary
+
+    Returns
+    ----------
+    first_photometry: dict
+        Information about the first detection
+    last_non_detection: dict
+        Information about the last non-detection
     """
     tmp_pho = []
     tmp_upp = []
@@ -64,7 +98,7 @@ def extract_discovery_photometry(data):
 
     # loop over prv_candidates, and add into photometry or non-det
     for alert in data['prv_candidates']:
-        if alert['magpsf'] != None:
+        if alert['magpsf'] is not None:
             tmp_pho.append(generate_photometry(alert))
         else:
             tmp_upp.append(generate_non_detection(alert))
@@ -91,9 +125,29 @@ def extract_discovery_photometry(data):
 
     return first_photometry, last_non_detection
 
-def build_report(data, photometry, non_detection):
+def build_report(data: dict, photometry: dict, non_detection: dict, remarks_sender=None) -> dict:
+    """ Build json report to send to TNS
+
+    Parameters
+    ----------
+    data: dict
+        Mean RA/Dec and scatter
+    photometry: dict
+        Information about the first detection
+    non_detection: dict
+        Information about the last non-detection
+    remarks_sender: str, optional
+        Comments that will be displayed on TNS. Default is None, that is
+        `utils.remarks`.
+
+    Returns
+    ----------
+    report: dict
+        Dictionnary at the TNS format.
     """
-    """
+    if remarks_sender is None:
+        remarks_sender = remarks
+
     radec = extract_radec(data)
     report = {
         "ra": {
@@ -112,7 +166,7 @@ def build_report(data, photometry, non_detection):
         "discovery_datetime": photometry['obsdate'],
         "at_type": at_type,
         "internal_name": data['objectId'],
-        "remarks": remarks.format(data['objectId']),
+        "remarks": remarks_sender.format(data['objectId']),
         "non_detection": non_detection,
         "photometry": {"photometry_group": {'0': photometry}}
     }
@@ -120,7 +174,23 @@ def build_report(data, photometry, non_detection):
     return report
 
 def save_logs_and_return_json_report(name: str, folder: str, ids: list, report: dict):
-    """
+    """ Save logs on disk (JSON), and return the path to the JSON file
+
+    Parameters
+    ----------
+    name: str
+        Filename
+    folder: str
+        Folder (or path) that will contain the log
+    ids: list
+        List of objectId that will be sent
+    report: dict
+        Payload to send to TNS
+
+    Returns
+    ---------
+    json_report: str
+        Path to the log
     """
     os.makedirs(folder, exist_ok=True)
 
@@ -135,12 +205,12 @@ def save_logs_and_return_json_report(name: str, folder: str, ids: list, report: 
     return json_report
 
 def format_to_json(source):
-    # change data to json format and return
+    """ change data to json format and return """
     parsed = json.loads(source, object_pairs_hook=OrderedDict)
     result = json.dumps(parsed, indent=4)
     return result
 
-def send_json_report(api_key, url, json_file_path, tns_marker):
+def send_json_report(api_key, url, json_file_path, tns_marker) -> int:
     """ Function for sending json reports (AT or Classification)
 
     Parameters
