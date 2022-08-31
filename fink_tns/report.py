@@ -12,16 +12,19 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import os
+import json
+import requests
+from collections import OrderedDict
+
 from fink_tns.utils import extract_radec
 from fink_tns.utils import inst_units, filters_dict, instrument
 from fink_tns.utils import reporting_group_id, at_type, discovery_data_source_id
 from fink_tns.utils import reporter, remarks
-import json
-import requests
-from collections import OrderedDict
+
 from astropy.time import Time
 import pandas as pd
-import os
+import numpy as np
 
 def generate_photometry(data: dict):
     """ Define structure of the dictionnary that contains first detection data
@@ -145,8 +148,10 @@ def extract_discovery_photometry_api(data: pd.DataFrame) -> (dict, dict):
     # first valid
     first = data[mask_valid].tail(1)
 
+    mask_time = data[~mask_valid]['i:jd'] < first['i:jd'].values[0]
+
     # last non-detection
-    last = data[~mask_valid].head(1)
+    last = data[~mask_valid][mask_time].head(1)
 
     first_photometry = {
         "obsdate": "{}".format(Time(first['i:jd'].values[0], format='jd').fits.replace("T", " ")),
@@ -259,7 +264,7 @@ def build_report_api(
     if reporter_custom is None:
         reporter_custom = reporter
 
-    mask = (data['i:ra'].values != None) & (data['i:dec'].values != None)
+    mask = ~np.isnan(data['i:ra'].values) & ~np.isnan(data['i:dec'].values)
     radec = {
         'ra': np.mean(data['i:ra'].values[mask]),
         'ra_err': np.std(data['i:ra'].values[mask]),
