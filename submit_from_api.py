@@ -24,16 +24,10 @@ from fink_tns.report import build_report_api
 from fink_tns.report import save_logs_and_return_json_report
 from fink_tns.report import send_json_report
 
-OBJECTID = 'ZTF23abeqble'
-REMARKS = 'Fink report of a fast transient. Spectroscopic classification is encouraged. Object data at https://fink-portal.org/{} '.format(OBJECTID)
-REPORTER = "A. Moller (Swinburne University) on behalf of the Fink broker"
-ATTYPE = 0
-OUTPATH = 'tns_submission'
-
 def main():
     """ Submit discovery to TNS
     """
-    parser = argparse.ArgumentParser(description="Submit an object to TNS")
+    parser = argparse.ArgumentParser(description="Submit a ZTF object from the Fink database to TNS")
     parser.add_argument(
         '-objectId', type=str, default=None,
         help="ZTF objectId")
