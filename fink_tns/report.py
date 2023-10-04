@@ -166,22 +166,25 @@ def extract_discovery_photometry_api(data: pd.DataFrame) -> (dict, dict):
         "comments": "Data provided by ZTF, classified by Fink"
     }
 
-    last_non_detection = {
-        "obsdate": "{}".format(Time(last['i:jd'].values[0], format='jd').fits.replace("T", " ")),
-        "limiting_flux": "{}".format(last['i:diffmaglim'].values[0]),
-        "flux_units": "{}".format(inst_units),
-        "filter_value": "{}".format(filters_dict[last['i:fid'].values[0]]),
-        "instrument_value": "{}".format(instrument),
-        "exptime": "30",
-        "observer": "Robot",
-        "comments": "Data provided by ZTF, classified by Fink"
-    }
+    if not last.empty:
+        last_non_detection = {
+            "obsdate": "{}".format(Time(last['i:jd'].values[0], format='jd').fits.replace("T", " ")),
+            "limiting_flux": "{}".format(last['i:diffmaglim'].values[0]),
+            "flux_units": "{}".format(inst_units),
+            "filter_value": "{}".format(filters_dict[last['i:fid'].values[0]]),
+            "instrument_value": "{}".format(instrument),
+            "exptime": "30",
+            "observer": "Robot",
+            "comments": "Data provided by ZTF, classified by Fink"
+        }
+    else:
+        last_non_detection = {}
 
     return first_photometry, last_non_detection
 
 def build_report(
         data: dict, photometry: dict, non_detection: dict,
-        reporter_custom=None, remarks_custom=None) -> dict:
+        reporter_custom=None, remarks_custom=None, at_type_=None) -> dict:
     """ Build json report to send to TNS
 
     Parameters
@@ -208,6 +211,8 @@ def build_report(
         remarks_custom = remarks
     if reporter_custom is None:
         reporter_custom = reporter
+    if at_type_ is None:
+        at_type_ = at_type
 
     radec = extract_radec(data)
     report = {
@@ -225,7 +230,7 @@ def build_report(
         "discovery_data_source_id": discovery_data_source_id,
         "reporter": reporter_custom,
         "discovery_datetime": photometry['obsdate'],
-        "at_type": at_type,
+        "at_type": at_type_,
         "internal_name": data['objectId'],
         "remarks": remarks_custom.format(data['objectId']),
         "non_detection": non_detection,
@@ -236,7 +241,7 @@ def build_report(
 
 def build_report_api(
         data: pd.DataFrame, photometry: dict, non_detection: dict,
-        reporter_custom=None, remarks_custom=None) -> dict:
+        reporter_custom=None, remarks_custom=None, at_type_=None) -> dict:
     """ Build json report to send to TNS
 
     Parameters
@@ -263,6 +268,8 @@ def build_report_api(
         remarks_custom = remarks
     if reporter_custom is None:
         reporter_custom = reporter
+    if at_type_ is None:
+        at_type_ = at_type
 
     mask = ~np.isnan(data['i:ra'].values) & ~np.isnan(data['i:dec'].values)
     radec = {
