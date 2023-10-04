@@ -12,16 +12,19 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import os
+import json
+import requests
+from collections import OrderedDict
+
 from fink_tns.utils import extract_radec
 from fink_tns.utils import inst_units, filters_dict, instrument
 from fink_tns.utils import reporting_group_id, at_type, discovery_data_source_id
 from fink_tns.utils import reporter, remarks
-import json
-import requests
-from collections import OrderedDict
+
 from astropy.time import Time
 import pandas as pd
-import os
+import numpy as np
 
 def generate_photometry(data: dict):
     """ Define structure of the dictionnary that contains first detection data
@@ -125,9 +128,63 @@ def extract_discovery_photometry(data: dict) -> (dict, dict):
 
     return first_photometry, last_non_detection
 
+def extract_discovery_photometry_api(data: pd.DataFrame) -> (dict, dict):
+    """ Extract the photometry at the moment of discovery
+
+    Parameters
+    ----------
+    data: pd.DataFrame
+        Fink/ZTF alert data from the REST API as a pandas DataFrame
+
+    Returns
+    ----------
+    first_photometry: dict
+        Information about the first detection
+    last_non_detection: dict
+        Information about the last non-detection
+    """
+    mask_valid = (data['d:tag'].values == 'valid') | (data['d:tag'].values == 'badquality')
+
+    # first valid
+    first = data[mask_valid].tail(1)
+
+    mask_time = data[~mask_valid]['i:jd'] < first['i:jd'].values[0]
+
+    # last non-detection
+    last = data[~mask_valid][mask_time].head(1)
+
+    first_photometry = {
+        "obsdate": "{}".format(Time(first['i:jd'].values[0], format='jd').fits.replace("T", " ")),
+        "flux": "{}".format(first['i:magpsf'].values[0]),
+        "flux_error": "{}".format(first['i:sigmapsf'].values[0]),
+        "limiting_flux": "{}".format(first['i:diffmaglim'].values[0]),
+        "flux_units": "{}".format(inst_units),
+        "filter_value": "{}".format(filters_dict[first['i:fid'].values[0]]),
+        "instrument_value": "{}".format(instrument),
+        "exptime": "30",
+        "observer": "Robot",
+        "comments": "Data provided by ZTF, classified by Fink"
+    }
+
+    if not last.empty:
+        last_non_detection = {
+            "obsdate": "{}".format(Time(last['i:jd'].values[0], format='jd').fits.replace("T", " ")),
+            "limiting_flux": "{}".format(last['i:diffmaglim'].values[0]),
+            "flux_units": "{}".format(inst_units),
+            "filter_value": "{}".format(filters_dict[last['i:fid'].values[0]]),
+            "instrument_value": "{}".format(instrument),
+            "exptime": "30",
+            "observer": "Robot",
+            "comments": "Data provided by ZTF, classified by Fink"
+        }
+    else:
+        last_non_detection = {}
+
+    return first_photometry, last_non_detection
+
 def build_report(
         data: dict, photometry: dict, non_detection: dict,
-        reporter_custom=None, remarks_custom=None) -> dict:
+        reporter_custom=None, remarks_custom=None, at_type_=None) -> dict:
     """ Build json report to send to TNS
 
     Parameters
@@ -154,6 +211,8 @@ def build_report(
         remarks_custom = remarks
     if reporter_custom is None:
         reporter_custom = reporter
+    if at_type_ is None:
+        at_type_ = at_type
 
     radec = extract_radec(data)
     report = {
@@ -171,9 +230,73 @@ def build_report(
         "discovery_data_source_id": discovery_data_source_id,
         "reporter": reporter_custom,
         "discovery_datetime": photometry['obsdate'],
-        "at_type": at_type,
+        "at_type": at_type_,
         "internal_name": data['objectId'],
         "remarks": remarks_custom.format(data['objectId']),
+        "non_detection": non_detection,
+        "photometry": {"photometry_group": {'0': photometry}}
+    }
+
+    return report
+
+def build_report_api(
+        data: pd.DataFrame, photometry: dict, non_detection: dict,
+        reporter_custom=None, remarks_custom=None, at_type_=None) -> dict:
+    """ Build json report to send to TNS
+
+    Parameters
+    ----------
+    data: dict
+        Data from the REST API /api/v1/objects
+    photometry: dict
+        Information about the first detection
+    non_detection: dict
+        Information about the last non-detection
+    remarks_custom: str, optional
+        Comments that will be displayed on TNS. Default is None, that is
+        `utils.remarks`.
+    reporter_custom: str, optional
+        Names of the reporters that will be displayed on TNS.
+        Default is None, that is `utils.reporter`.
+
+    Returns
+    ----------
+    report: dict
+        Dictionnary at the TNS format.
+    """
+    if remarks_custom is None:
+        remarks_custom = remarks
+    if reporter_custom is None:
+        reporter_custom = reporter
+    if at_type_ is None:
+        at_type_ = at_type
+
+    mask = ~np.isnan(data['i:ra'].values) & ~np.isnan(data['i:dec'].values)
+    radec = {
+        'ra': np.mean(data['i:ra'].values[mask]),
+        'ra_err': np.std(data['i:ra'].values[mask]),
+        'dec': np.mean(data['i:dec'].values[mask]),
+        'dec_err': np.std(data['i:dec'].values[mask])
+    }
+
+    report = {
+        "ra": {
+            "value": radec['ra'],
+            "error": radec['ra_err'] * 3600,
+            "units": "arcsec"
+        },
+        "dec": {
+            "value": radec['dec'],
+            "error": radec['dec_err'] * 3600,
+            "units": "arcsec"
+        },
+        "reporting_group_id": reporting_group_id,
+        "discovery_data_source_id": discovery_data_source_id,
+        "reporter": reporter_custom,
+        "discovery_datetime": photometry['obsdate'],
+        "at_type": at_type,
+        "internal_name": data['i:objectId'].values[0],
+        "remarks": remarks_custom.format(data['i:objectId'].values[0]),
         "non_detection": non_detection,
         "photometry": {"photometry_group": {'0': photometry}}
     }
