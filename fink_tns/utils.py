@@ -174,6 +174,11 @@ def read_past_ids(folder):
     folder: str
         Path to the folder containing CSV files containing all ZTF objectId sent
     """
+    filenames = glob.glob('{}/*.csv'.format(folder))
+    if len(filenames) == 0:
+        # no files found
+        return pd.DataFrame()
+
     pdf = pd.concat(
         [
             pd.read_csv(i) for i in glob.glob('{}/*.csv'.format(folder))
