@@ -1,3 +1,4 @@
+[![pypi](https://img.shields.io/pypi/v/fink-tns.svg)](https://pypi.python.org/pypi/fink-tns)
 # Fink TNS
 
 This repository hosts scripts to define a TNS bot to push early SN candidates from Fink. Usage:
