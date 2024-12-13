@@ -227,7 +227,7 @@ def download_catalog(api_key, tns_marker):
     return pdf_tns
 
 def extract_ztf_entries(x):
-    """Filter a string containg substring starting with ZTF"""
+    """Filter a string containg substrings starting with ZTF"""
     if x is None:
         return ""
     else:
