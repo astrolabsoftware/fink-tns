@@ -225,3 +225,55 @@ def download_catalog(api_key, tns_marker):
     pdf_tns = pd.read_csv(io.BytesIO(data), skiprows=[0])
 
     return pdf_tns
+
+def extract_ztf_entries(x):
+    """Filter a string containg substring starting with ZTF"""
+    if x is None:
+        return ""
+    else:
+        tmp = x.split(",")
+        mask = [i.startswith("ZTF") for i in tmp]
+        if sum(mask) > 0:
+            return np.array(tmp)[mask][0]
+        else:
+            return ""
+
+def print_fink_statistics(tns_logs_folder=None, tns_catalog=None):
+    """Print Fink performance on TNS 
+
+    Parameters
+    ----------
+    tns_logs_folder: str
+        TNS log folder if available (only for operations). 
+        Otherwise, if None, API call is made.
+    tns_catalog: str
+        Path to the TNS catalog in parquet.
+    """
+    # This could be replace by API call for Early SN Ia
+    if tns_logs_folder is not None:
+        tns_id = read_past_ids(tns_logs_folder)
+    else:
+        # Get latests 5 Early SN Ia candidates
+        r = requests.post(
+          "https://fink-portal.org/api/v1/latests",
+          json={
+            "class": "Early SN Ia candidate",
+            "columns": "i:objectId",
+            "n": "100000"
+          }
+        )
+
+        # Format output in a DataFrame
+        tmp = pd.read_json(io.BytesIO(r.content))
+        tns_id = tmp.drop_duplicates("i:objectId").rename(columns={"i:objectId": "id"})
+    cat = pd.read_parquet(tns_catalog)
+
+    cat["id"] = cat["internalname"].apply(extract_ztf_entries)
+
+    merged = pd.merge(tns_id, cat, on='id')
+
+    print("Number of candidates sent to TNS: {}".format(len(tns_id)))
+    print("Number of classified candidates: {}".format(len(merged)))
+    print("--------------")
+    print(merged.groupby("type").count().sort_values("id", ascending=False)["id"])
+
