@@ -356,7 +356,7 @@ def send_json_report(api_key, url, json_file_path, tns_marker) -> int:
         See https://www.wis-tns.org/content/tns-newsfeed#comment-wrapper-23710
     """
     # url for sending json reports
-    json_url = url + '/bulk-report'
+    json_url = url + '/set/bulk-report'
 
     # read json data from file
     json_read = format_to_json(open(json_file_path).read())
