@@ -63,7 +63,7 @@ def main():
     report = {"at_report": {}}
     for index, obj in enumerate(objects):
         r = requests.post(
-            'https://fink-portal.org/api/v1/objects',
+            'https://api.fink-portal.org/api/v1/objects',
             json={
             'objectId': obj,
             'withupperlim': 'True'
