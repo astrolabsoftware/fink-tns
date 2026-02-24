@@ -18,10 +18,10 @@ import pandas as pd
 import io
 import argparse
 
-from fink_tns.report import extract_discovery_photometry_api
-from fink_tns.report import build_report_api
-from fink_tns.report import save_logs_and_return_json_report
-from fink_tns.report import send_json_report
+from fink_tns.lsst.report import extract_discovery_photometry_api
+from fink_tns.lsst.report import build_report_api
+from fink_tns.lsst.report import save_logs_and_return_json_report
+from fink_tns.lsst.report import send_json_report
 
 def main():
     """ Submit discovery to TNS

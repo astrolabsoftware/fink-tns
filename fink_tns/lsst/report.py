@@ -17,10 +17,10 @@ import json
 import requests
 from collections import OrderedDict
 
-from fink_tns.utils import extract_radec
-from fink_tns.utils import inst_units, filters_dict, instrument
-from fink_tns.utils import reporting_group_id, at_type, discovery_data_source_id
-from fink_tns.utils import reporter, remarks
+from fink_tns.lsst.utils import extract_radec
+from fink_tns.lsst.utils import inst_units, filters_dict, instrument
+from fink_tns.lsst.utils import reporting_group_id, at_type, discovery_data_source_id
+from fink_tns.lsst.utils import reporter, remarks
 
 from astropy.time import Time
 import pandas as pd
