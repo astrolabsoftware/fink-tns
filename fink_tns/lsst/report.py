@@ -213,8 +213,8 @@ def build_report(
         "reporter": reporter_custom,
         "discovery_datetime": photometry['obsdate'],
         "at_type": at_type_,
-        "internal_name": data['objectId'],
-        "remarks": remarks_custom.format(data['objectId']),
+        "internal_name": "LSST-P-DO-{}".format(data["diaObject"].apply(lambda x: x['diaObjectId']).values[0]),
+        "remarks": remarks_custom.format(data["diaObject"].apply(lambda x: x['diaObjectId']).values[0]),
         "non_detection": non_detection,
         "photometry": {"photometry_group": {'0': photometry}}
     }
@@ -277,7 +277,7 @@ def build_report_api(
         "reporter": reporter_custom,
         "discovery_datetime": photometry['obsdate'],
         "at_type": at_type,
-        "internal_name": data['r:diaObjectId'].values[0],
+        "internal_name": "LSST-P-DO-{}".format(data['r:diaObjectId'].values[0]),
         "remarks": remarks_custom.format(data['r:diaObjectId'].values[0]),
         "non_detection": non_detection,
         "photometry": {"photometry_group": {'0': photometry}}
