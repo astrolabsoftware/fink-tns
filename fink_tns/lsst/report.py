@@ -17,7 +17,7 @@ import json
 import requests
 from collections import OrderedDict
 
-from fink_tns.lsst.utils import extract_radec
+from fink_tns.lsst.utils import extract_radec, flux_to_mag
 from fink_tns.lsst.utils import inst_units, filters_dict, instrument
 from fink_tns.lsst.utils import reporting_group_id, at_type, discovery_data_source_id
 from fink_tns.lsst.utils import reporter, remarks
@@ -25,6 +25,11 @@ from fink_tns.lsst.utils import reporter, remarks
 from astropy.time import Time
 import pandas as pd
 import numpy as np
+
+import logging
+
+_LOG = logging.getLogger(__name__)
+
 
 def generate_photometry(data: dict):
     """ Define structure of the dictionnary that contains first detection data
@@ -38,12 +43,13 @@ def generate_photometry(data: dict):
     ---------
     dd: dict
     """
+    mag, err_mag = flux_to_mag(data['psfFlux'], data['psfFluxErr'])
     dd = {
         "obsdate": "{}".format(Time(data['midpointMjdTai'], format='mjd', scale="tai").utc.fits.replace("T", " ")),
-        "flux": "{}".format(data['psfFlux']),
-        "flux_error": "{}".format(data['psfFluxErr']),
+        "flux": "{}".format(mag),
+        "flux_error": "{}".format(err_mag),
         "limiting_flux": "",
-        "flux_units": "{}".format("nJy"),
+        "flux_units": "{}".format(inst_units),
         "filter_value": "{}".format(filters_dict[data['band']]),
         "instrument_value": "{}".format(instrument),
         "exptime": "30",
@@ -146,10 +152,15 @@ def extract_discovery_photometry_api(data: pd.DataFrame) -> (dict, dict):
 
     mask_time = data['r:midpointMjdTai'] < first['r:midpointMjdTai'].values[0]
 
+    mag, err_mag = flux_to_mag(first['r:psfFlux'].values[0], first['r:psfFluxErr'].values[0])
+    if pd.isna(mag):
+        _LOG.warning("psfFlux is negative -- switching to scienceFlux")
+        mag, err_mag = flux_to_mag(first['r:scienceFlux'].values[0], first['r:scienceFluxErr'].values[0])
+
     first_photometry = {
         "obsdate": "{}".format(Time(first['r:midpointMjdTai'].values[0], format='mjd', scale="tai").utc.fits.replace("T", " ")),
-        "flux": "{}".format(first['r:psfFlux'].values[0]),
-        "flux_error": "{}".format(first['r:psfFluxErr'].values[0]),
+        "flux": "{}".format(mag),
+        "flux_error": "{}".format(err_mag),
         "limiting_flux": "",
         "flux_units": "{}".format(inst_units),
         "filter_value": "{}".format(filters_dict[first['r:band'].values[0]]),
@@ -354,5 +365,6 @@ def send_json_report(api_key, url, json_file_path, tns_marker) -> int:
 
     # send json report using request module
     response = requests.post(json_url, data=json_data, headers=headers)
+    print(response.status_code)
 
     return response

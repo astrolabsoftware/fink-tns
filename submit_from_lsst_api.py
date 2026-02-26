@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# Copyright 2022-2023 AstroLab Software
+# Copyright 2022-2026 AstroLab Software
 # Author: Julien Peloton
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -23,6 +23,11 @@ from fink_tns.lsst.report import build_report_api
 from fink_tns.lsst.report import save_logs_and_return_json_report
 from fink_tns.lsst.report import send_json_report
 
+import logging
+
+_LOG = logging.getLogger(__name__)
+_LOG.setLevel(logging.DEBUG)
+
 def main():
     """ Submit discovery to TNS
     """
@@ -42,6 +47,9 @@ def main():
     parser.add_argument(
         '-outpath', type=str, default='./',
         help="Path where credentials are stored.")
+    parser.add_argument(
+        '--dry_run', action="store_true",
+        help="If set, do not send the report to TNS (useful for inspection).")
     args = parser.parse_args(None)
 
     if args.diaObjectId is None:
@@ -89,10 +97,11 @@ def main():
         ids=ids,
         report=report
     )
-    print(report)
+    _LOG.warning(report)
 
-    r = send_json_report(key, url_tns_api, json_report, tns_marker)
-    print(r.json())
+    if not args.dry_run:
+        r = send_json_report(key, url_tns_api, json_report, tns_marker)
+        _LOG.warning(r.json())
 
 if __name__ == "__main__":
     main()

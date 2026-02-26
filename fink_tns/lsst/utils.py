@@ -31,7 +31,7 @@ discovery_data_source_id = "165"
 instrument = "287"
 
 # units
-inst_units = "34"
+inst_units = "1"
 
 # at type
 at_type = "1"
@@ -276,3 +276,22 @@ def print_fink_statistics(tns_logs_folder=None, tns_catalog=None):
     print("--------------")
     print(merged.groupby("type").count().sort_values("id", ascending=False)["id"])
 
+
+def flux_to_mag(flux, flux_err):
+    """Convert flux to magnitude (and errors)
+
+    Parameters
+    ----------
+    flux: array-like
+        Total flux in nJy
+    flux_err: array-like
+        Total flux error in nJy
+
+    Returns
+    -------
+    mag, mag_err: array-like
+    """
+    mag = 31.4 - 2.5 * np.log10(flux)
+    mag_err = 2.5 / np.log(10) * flux_err / flux
+
+    return mag, mag_err
