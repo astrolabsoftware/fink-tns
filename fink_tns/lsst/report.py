@@ -1,4 +1,4 @@
-# Copyright 2020 AstroLab Software
+# Copyright 2026 AstroLab Software
 # Author: Julien Peloton
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,14 +17,19 @@ import json
 import requests
 from collections import OrderedDict
 
-from fink_tns.utils import extract_radec
-from fink_tns.utils import inst_units, filters_dict, instrument
-from fink_tns.utils import reporting_group_id, at_type, discovery_data_source_id
-from fink_tns.utils import reporter, remarks
+from fink_tns.lsst.utils import extract_radec, flux_to_mag
+from fink_tns.lsst.utils import inst_units, filters_dict, instrument
+from fink_tns.lsst.utils import reporting_group_id, at_type, discovery_data_source_id
+from fink_tns.lsst.utils import reporter, remarks
 
 from astropy.time import Time
 import pandas as pd
 import numpy as np
+
+import logging
+
+_LOG = logging.getLogger(__name__)
+
 
 def generate_photometry(data: dict):
     """ Define structure of the dictionnary that contains first detection data
@@ -32,23 +37,24 @@ def generate_photometry(data: dict):
     Parameters
     ----------
     data: dict
-        Fink/ZTF alert
+        Fink/LSST alert
 
     Returns
     ---------
     dd: dict
     """
+    mag, err_mag = flux_to_mag(data['psfFlux'], data['psfFluxErr'])
     dd = {
-        "obsdate": "{}".format(Time(data['jd'], format='jd').fits.replace("T", " ")),
-        "flux": "{}".format(data['magpsf']),
-        "flux_error": "{}".format(data['sigmapsf']),
-        "limiting_flux": "{}".format(data['diffmaglim']),
+        "obsdate": "{}".format(Time(data['midpointMjdTai'], format='mjd', scale="tai").utc.fits.replace("T", " ")),
+        "flux": "{}".format(mag),
+        "flux_error": "{}".format(err_mag),
+        "limiting_flux": "",
         "flux_units": "{}".format(inst_units),
-        "filter_value": "{}".format(filters_dict[data['fid']]),
+        "filter_value": "{}".format(filters_dict[data['band']]),
         "instrument_value": "{}".format(instrument),
         "exptime": "30",
         "observer": "Robot",
-        "comments": "Data provided by ZTF, classified by Fink"
+        "comments": "Data provided by LSST, classified by Fink"
     }
 
     return dd
@@ -66,14 +72,14 @@ def generate_non_detection(data):
     dd: dict
     """
     dd = {
-        "obsdate": "{}".format(Time(data['jd'], format='jd').fits.replace("T", " ")),
-        "limiting_flux": "{}".format(data['diffmaglim']),
+        "obsdate": "{}".format(Time(data['midpointMjdTai'], format='mjd', scale="tai").utc.fits.replace("T", " ")),
+        "limiting_flux": "",
         "flux_units": "{}".format(inst_units),
-        "filter_value": "{}".format(filters_dict[data['fid']]),
+        "filter_value": "{}".format(filters_dict[data['band']]),
         "instrument_value": "{}".format(instrument),
         "exptime": "30",
         "observer": "Robot",
-        "comments": "Data provided by ZTF, classified by Fink"
+        "comments": "Data provided by LSST, classified by Fink"
     }
 
     return dd
@@ -97,14 +103,11 @@ def extract_discovery_photometry(data: dict) -> (dict, dict):
     tmp_upp = []
 
     # add candidate into photometry
-    tmp_pho.append(generate_photometry(data['candidate']))
+    tmp_pho.append(generate_photometry(data['diaSource']))
 
     # loop over prv_candidates, and add into photometry or non-det
-    for alert in data['prv_candidates']:
-        if alert['magpsf'] is not None:
-            tmp_pho.append(generate_photometry(alert))
-        else:
-            tmp_upp.append(generate_non_detection(alert))
+    for alert in data['prvDiaSources']:
+        tmp_pho.append(generate_photometry(alert))
 
     # Sort photometry and keep the first one
     tmp_pho = sorted(tmp_pho, key=lambda i: i['obsdate'])
@@ -121,7 +124,7 @@ def extract_discovery_photometry(data: dict) -> (dict, dict):
     if len(tmp_upp) == 0:
         last_non_detection = {
             "archiveid": "0",
-            "archival_remarks": "ZTF non-detection limits not available"
+            "archival_remarks": "LSST non-detection limits not available"
         }
     else:
         last_non_detection = tmp_upp[-1]
@@ -143,42 +146,32 @@ def extract_discovery_photometry_api(data: pd.DataFrame) -> (dict, dict):
     last_non_detection: dict
         Information about the last non-detection
     """
-    mask_valid = (data['d:tag'].values == 'valid') | (data['d:tag'].values == 'badquality')
 
     # first valid
-    first = data[mask_valid].tail(1)
+    first = data.tail(1)
 
-    mask_time = data[~mask_valid]['i:jd'] < first['i:jd'].values[0]
+    mask_time = data['r:midpointMjdTai'] < first['r:midpointMjdTai'].values[0]
 
-    # last non-detection
-    last = data[~mask_valid][mask_time].head(1)
+    mag, err_mag = flux_to_mag(first['r:psfFlux'].values[0], first['r:psfFluxErr'].values[0])
+    if pd.isna(mag):
+        _LOG.warning("psfFlux is negative -- switching to scienceFlux")
+        mag, err_mag = flux_to_mag(first['r:scienceFlux'].values[0], first['r:scienceFluxErr'].values[0])
 
     first_photometry = {
-        "obsdate": "{}".format(Time(first['i:jd'].values[0], format='jd').fits.replace("T", " ")),
-        "flux": "{}".format(first['i:magpsf'].values[0]),
-        "flux_error": "{}".format(first['i:sigmapsf'].values[0]),
-        "limiting_flux": "{}".format(first['i:diffmaglim'].values[0]),
+        "obsdate": "{}".format(Time(first['r:midpointMjdTai'].values[0], format='mjd', scale="tai").utc.fits.replace("T", " ")),
+        "flux": "{}".format(mag),
+        "flux_error": "{}".format(err_mag),
+        "limiting_flux": "",
         "flux_units": "{}".format(inst_units),
-        "filter_value": "{}".format(filters_dict[first['i:fid'].values[0]]),
+        "filter_value": "{}".format(filters_dict[first['r:band'].values[0]]),
         "instrument_value": "{}".format(instrument),
         "exptime": "30",
         "observer": "Robot",
-        "comments": "Data provided by ZTF, classified by Fink"
+        "comments": "Data provided by LSST, classified by Fink"
     }
 
-    if not last.empty:
-        last_non_detection = {
-            "obsdate": "{}".format(Time(last['i:jd'].values[0], format='jd').fits.replace("T", " ")),
-            "limiting_flux": "{}".format(last['i:diffmaglim'].values[0]),
-            "flux_units": "{}".format(inst_units),
-            "filter_value": "{}".format(filters_dict[last['i:fid'].values[0]]),
-            "instrument_value": "{}".format(instrument),
-            "exptime": "30",
-            "observer": "Robot",
-            "comments": "Data provided by ZTF, classified by Fink"
-        }
-    else:
-        last_non_detection = {}
+
+    last_non_detection = {}
 
     return first_photometry, last_non_detection
 
@@ -231,8 +224,8 @@ def build_report(
         "reporter": reporter_custom,
         "discovery_datetime": photometry['obsdate'],
         "at_type": at_type_,
-        "internal_name": data['objectId'],
-        "remarks": remarks_custom.format(data['objectId']),
+        "internal_name": "LSST-P-DO-{}".format(data["diaObject"].apply(lambda x: x['diaObjectId']).values[0]),
+        "remarks": remarks_custom.format(data["diaObject"].apply(lambda x: x['diaObjectId']).values[0]),
         "non_detection": non_detection,
         "photometry": {"photometry_group": {'0': photometry}}
     }
@@ -271,12 +264,12 @@ def build_report_api(
     if at_type_ is None:
         at_type_ = at_type
 
-    mask = ~np.isnan(data['i:ra'].values) & ~np.isnan(data['i:dec'].values)
+    mask = ~np.isnan(data['r:ra'].values) & ~np.isnan(data['r:dec'].values)
     radec = {
-        'ra': np.mean(data['i:ra'].values[mask]),
-        'ra_err': np.std(data['i:ra'].values[mask]),
-        'dec': np.mean(data['i:dec'].values[mask]),
-        'dec_err': np.std(data['i:dec'].values[mask])
+        'ra': np.mean(data['r:ra'].values[mask]),
+        'ra_err': np.std(data['r:ra'].values[mask]),
+        'dec': np.mean(data['r:dec'].values[mask]),
+        'dec_err': np.std(data['r:dec'].values[mask])
     }
 
     report = {
@@ -295,8 +288,8 @@ def build_report_api(
         "reporter": reporter_custom,
         "discovery_datetime": photometry['obsdate'],
         "at_type": at_type,
-        "internal_name": data['i:objectId'].values[0],
-        "remarks": remarks_custom.format(data['i:objectId'].values[0]),
+        "internal_name": "LSST-P-DO-{}".format(data['r:diaObjectId'].values[0]),
+        "remarks": remarks_custom.format(data['r:diaObjectId'].values[0]),
         "non_detection": non_detection,
         "photometry": {"photometry_group": {'0': photometry}}
     }
@@ -372,5 +365,6 @@ def send_json_report(api_key, url, json_file_path, tns_marker) -> int:
 
     # send json report using request module
     response = requests.post(json_url, data=json_data, headers=headers)
+    print(response.status_code)
 
     return response
