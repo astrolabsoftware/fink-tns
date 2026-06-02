@@ -270,10 +270,10 @@ def build_report_api(
 
     mask = ~np.isnan(data['r:ra'].values) & ~np.isnan(data['r:dec'].values)
     radec = {
-        'ra': np.mean(data['r:ra'].values[mask]),
-        'ra_err': np.std(data['r:ra'].values[mask]),
-        'dec': np.mean(data['r:dec'].values[mask]),
-        'dec_err': np.std(data['r:dec'].values[mask])
+        'ra': float(np.mean(data['r:ra'].values[mask])),
+        'ra_err': float(np.std(data['r:ra'].values[mask])),
+        'dec': float(np.mean(data['r:dec'].values[mask])),
+        'dec_err': float(np.std(data['r:dec'].values[mask]))
     }
 
     report = {
