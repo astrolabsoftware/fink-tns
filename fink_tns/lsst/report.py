@@ -171,7 +171,7 @@ def extract_discovery_photometry_api(data: pd.DataFrame) -> (dict, dict):
     }
 
 
-    last_non_detection = {}
+    last_non_detection = {"archiveid": "2"}
 
     return first_photometry, last_non_detection
 
@@ -227,7 +227,11 @@ def build_report(
         "internal_name": "LSST-AP-DO-{}".format(data["diaObject"].apply(lambda x: x['diaObjectId']).values[0]),
         "remarks": remarks_custom.format(data["diaObject"].apply(lambda x: x['diaObjectId']).values[0]),
         "non_detection": non_detection,
-        "photometry": {"photometry_group": {'0': photometry}}
+        "photometry": {"photometry_group": {'0': photometry}},
+        "archives": {
+            "0": "Other",
+            "1": "SDSS",
+        },
     }
 
     return report
@@ -266,10 +270,10 @@ def build_report_api(
 
     mask = ~np.isnan(data['r:ra'].values) & ~np.isnan(data['r:dec'].values)
     radec = {
-        'ra': np.mean(data['r:ra'].values[mask]),
-        'ra_err': np.std(data['r:ra'].values[mask]),
-        'dec': np.mean(data['r:dec'].values[mask]),
-        'dec_err': np.std(data['r:dec'].values[mask])
+        'ra': float(np.mean(data['r:ra'].values[mask])),
+        'ra_err': float(np.std(data['r:ra'].values[mask])),
+        'dec': float(np.mean(data['r:dec'].values[mask])),
+        'dec_err': float(np.std(data['r:dec'].values[mask]))
     }
 
     report = {
@@ -287,11 +291,15 @@ def build_report_api(
         "discovery_data_source_id": discovery_data_source_id,
         "reporter": reporter_custom,
         "discovery_datetime": photometry['obsdate'],
-        "at_type": at_type,
+        "at_type": at_type_,
         "internal_name": "LSST-AP-DO-{}".format(data['r:diaObjectId'].values[0]),
         "remarks": remarks_custom.format(data['r:diaObjectId'].values[0]),
         "non_detection": non_detection,
-        "photometry": {"photometry_group": {'0': photometry}}
+        "photometry": {"photometry_group": {'0': photometry}},
+        "archives": {
+            "0": "Other",
+            "1": "SDSS",
+        },
     }
 
     return report
