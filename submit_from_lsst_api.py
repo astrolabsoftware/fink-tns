@@ -42,8 +42,8 @@ def main():
         '-reporter', type=str, default=None,
         help="Message to be displayed on the `Reporter/s` section on TNS")
     parser.add_argument(
-        '-attype', type=int, default=0,
-        help="AT type.")
+        '-attype', type=int, default=1,
+        help="AT type. Default is 1 (SN).")
     parser.add_argument(
         '-outpath', type=str, default='./',
         help="Path where credentials are stored.")
