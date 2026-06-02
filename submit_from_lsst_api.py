@@ -48,6 +48,9 @@ def main():
         '-outpath', type=str, default='./',
         help="Path where credentials are stored.")
     parser.add_argument(
+        '--sandbox', action="store_true",
+        help="If set, send the report to the sandbox (useful to validate payload).")
+    parser.add_argument(
         '--dry_run', action="store_true",
         help="If set, do not send the report to TNS (useful for inspection).")
     args = parser.parse_args(None)
@@ -62,9 +65,14 @@ def main():
     with open('{}/tns_marker.txt'.format(args.outpath)) as f:
         tns_marker = f.read().replace('\n', '')
 
-    url_tns_api = "https://www.wis-tns.org/api"
-    with open('{}/tns_api.key'.format(args.outpath)) as f:
-        key = f.read().replace('\n', '')
+    if args.sandbox:
+        url_tns_api = "https://sandbox.wis-tns.org/api"
+        with open('{}/tns_api.key'.format(args.outpath)) as f:
+            key = f.read().replace('\n', '')
+    else:
+        url_tns_api = "https://www.wis-tns.org/api"
+        with open('{}/tns_api.key'.format(args.outpath)) as f:
+            key = f.read().replace('\n', '')
 
     objects = [args.diaObjectId]
     ids = []
